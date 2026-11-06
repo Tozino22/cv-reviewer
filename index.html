@@ -1,0 +1,454 @@
+<title>CV Reviewer & ATS Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: an analysis console — input panel, a score summary band, then standard cards grouped by section. */
+:root{
+  --bg:#f5f7f6; --surface:#ffffff; --surface-2:#eef2f0; --fg:#15201c; --muted:#596b64;
+  --border:#d9e0dc; --accent:#0d8f7e; --accent-fg:#ffffff;
+  --pass:#1a7f52; --partial:#a56a08; --fail:#c0392f; --review:#6b7a74;
+  --pass-bg:#e6f3ec; --partial-bg:#f7efdd; --fail-bg:#f8e7e5; --review-bg:#eef1f0;
+  --ring:#0d8f7e33;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1412; --surface:#121c19; --surface-2:#172420; --fg:#e8efec; --muted:#93a49d;
+  --border:#24352f; --accent:#3bd4bb; --accent-fg:#04140f;
+  --pass:#34c27e; --partial:#e0a43b; --fail:#f0695c; --review:#8fa29b;
+  --pass-bg:#10251c; --partial-bg:#2a2112; --fail-bg:#2c1614; --review-bg:#18231f;
+  --ring:#3bd4bb2e; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0d1412; --surface:#121c19; --surface-2:#172420; --fg:#e8efec; --muted:#93a49d;
+  --border:#24352f; --accent:#3bd4bb; --accent-fg:#04140f;
+  --pass:#34c27e; --partial:#e0a43b; --fail:#f0695c; --review:#8fa29b;
+  --pass-bg:#10251c; --partial-bg:#2a2112; --fail-bg:#2c1614; --review-bg:#18231f;
+  --ring:#3bd4bb2e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.5;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;text-wrap:balance;margin:0}
+.mono{font-family:var(--mono)}
+
+/* header */
+header{padding-block:26px 10px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.brand h1{font-size:clamp(1.7rem,4vw,2.4rem);letter-spacing:-.01em}
+.brand p{margin:.35rem 0 0;color:var(--muted);max-width:60ch;font-size:.95rem}
+.toggle{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:.5rem .9rem;cursor:pointer}
+.toggle:hover{border-color:var(--accent);color:var(--fg)}
+
+/* input panel */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-top:14px}
+.io{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+@media (max-width:720px){.io{grid-template-columns:1fr}}
+.field label{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field textarea{width:100%;min-height:150px;resize:vertical;background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:11px;padding:11px 13px;font-family:var(--mono);font-size:.82rem;line-height:1.5}
+.field textarea:focus{outline:2px solid var(--ring);outline-offset:1px;border-color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
+.btn{font-family:var(--sans);font-weight:600;font-size:.9rem;border-radius:10px;padding:.62rem 1.2rem;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--fg)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn:hover{border-color:var(--accent)}
+.hint{color:var(--muted);font-size:.8rem}
+
+/* scores */
+.scores{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+@media (max-width:720px){.scores{grid-template-columns:1fr}}
+.score{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;display:flex;gap:16px;align-items:center}
+.dial{--v:0;--c:var(--accent);width:84px;height:84px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(closest-side,var(--surface) 72%,transparent 73%),conic-gradient(var(--c) calc(var(--v)*1%),var(--border) 0)}
+.dial span{font-family:var(--serif);font-size:1.45rem;font-weight:600;font-variant-numeric:tabular-nums}
+.score .lbl{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.score .grade{font-family:var(--serif);font-size:1.15rem;margin-top:2px}
+.score .sub{font-size:.8rem;color:var(--muted);margin-top:3px}
+
+/* fixes */
+.fixes{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:14px;padding:16px 18px;margin-top:16px}
+.fixes h3{font-size:1.05rem;margin-bottom:8px}
+.fixes ol{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px}
+.fixes li{font-size:.9rem}
+.fixes li b{font-weight:600}
+.tagv{font-family:var(--mono);font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;padding:.08rem .4rem;border-radius:5px;margin-right:6px;vertical-align:1px}
+
+/* groups + cards */
+.group{margin-top:26px}
+.group>h2{font-size:1.15rem;display:flex;align-items:baseline;gap:10px}
+.group>h2 em{font-family:var(--mono);font-style:normal;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:12px}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card .no{font-family:var(--mono);font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.card h3{font-size:1.05rem}
+.card .what{font-size:.86rem;color:var(--muted)}
+.crit{display:flex;flex-direction:column;gap:3px;margin:0;padding:0;list-style:none}
+.crit li{font-size:.8rem;padding-left:1.1rem;position:relative}
+.crit li::before{content:"›";position:absolute;left:0;color:var(--accent)}
+.reason{font-size:.83rem;background:var(--surface-2);border-radius:9px;padding:8px 10px;min-width:0;overflow-wrap:anywhere}
+.reason b{font-weight:600}
+.verdict{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}
+.vb{font-family:var(--mono);font-size:.74rem;font-weight:500;letter-spacing:.03em;border:1px solid var(--border);background:var(--surface-2);color:var(--muted);border-radius:8px;padding:.4rem .7rem;cursor:pointer}
+.vb:hover{border-color:currentColor}
+.vb.on[data-v="pass"]{background:var(--pass-bg);color:var(--pass);border-color:var(--pass)}
+.vb.on[data-v="partial"]{background:var(--partial-bg);color:var(--partial);border-color:var(--partial)}
+.vb.on[data-v="fail"]{background:var(--fail-bg);color:var(--fail);border-color:var(--fail)}
+.card[data-state="pass"]{border-color:var(--pass)}
+.card[data-state="partial"]{border-color:var(--partial)}
+.card[data-state="fail"]{border-color:var(--fail)}
+.card[data-state="review"]{border-color:var(--review);border-style:dashed}
+.pill{align-self:flex-start;font-family:var(--mono);font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;padding:.16rem .5rem;border-radius:6px}
+.pill.pass{background:var(--pass-bg);color:var(--pass)}
+.pill.partial{background:var(--partial-bg);color:var(--partial)}
+.pill.fail{background:var(--fail-bg);color:var(--fail)}
+.pill.review{background:var(--review-bg);color:var(--review)}
+.howfix{font-size:.82rem;line-height:1.5;border-left:3px solid var(--accent);background:var(--surface-2);padding:8px 11px;border-radius:0 9px 9px 0;min-width:0;overflow-wrap:anywhere}
+.howfix b{color:var(--accent);font-weight:600}
+.eg{display:block;margin-top:6px;font-family:var(--mono);font-size:.74rem;line-height:1.55;color:var(--muted)}
+.eg b{color:var(--muted)}
+.fixes li .eg{margin-top:4px}
+.letter{font-family:var(--serif);font-weight:600}
+footer{color:var(--muted);font-size:.78rem;margin:34px 0 28px;border-top:1px solid var(--border);padding-top:14px}
+.ex{font-family:var(--mono);font-size:.68rem;color:var(--partial);background:var(--partial-bg);padding:.12rem .45rem;border-radius:5px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>CV Reviewer &amp; ATS Check</h1>
+      <p>Paste your resume and (optionally) a job description to get a letter grade, an ATS score and a specific fix for every weak spot. It remembers your resume in this browser, so you can re-check it as you improve. Click any verdict to override. Nothing leaves your browser.</p>
+    </div>
+    <button class="toggle" id="themeBtn" type="button">Theme</button>
+  </header>
+
+  <div class="panel">
+    <div class="io">
+      <div class="field">
+        <label for="resume">Your resume <span id="exLbl" class="ex">sample loaded</span></label>
+        <textarea id="resume" spellcheck="false"></textarea>
+      </div>
+      <div class="field">
+        <label for="jd">Job description <span style="color:var(--muted)">optional — enables keyword match</span></label>
+        <textarea id="jd" spellcheck="false" placeholder="Paste the target job posting here to score keyword alignment…"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="analyze" type="button">Analyze resume</button>
+      <button class="btn" id="sampleBtn" type="button">Load sample</button>
+      <button class="btn" id="clearBtn" type="button">Clear</button>
+      <button class="btn" id="copyBtn" type="button">Copy report</button>
+      <span class="hint" id="hint"></span>
+    </div>
+  </div>
+
+  <div class="scores">
+    <div class="score"><div class="dial" id="dialO"><span id="scoreO">—</span></div><div><div class="lbl">Overall</div><div class="grade" id="gradeO">—</div><div class="sub" id="subO">Run an analysis to begin</div></div></div>
+    <div class="score"><div class="dial" id="dialC"><span id="scoreC">—</span></div><div><div class="lbl">Content &amp; impact</div><div class="grade" id="gradeC">—</div><div class="sub">Writing, metrics, targeting</div></div></div>
+    <div class="score"><div class="dial" id="dialA"><span id="scoreA">—</span></div><div><div class="lbl">ATS readiness</div><div class="grade" id="gradeA">—</div><div class="sub">Parseability &amp; keywords</div></div></div>
+  </div>
+
+  <div class="fixes" id="fixesBox" hidden><h3>Recommended fixes — in priority order</h3><ol id="fixes"></ol></div>
+
+  <div id="groups"></div>
+
+  <footer>
+    Heuristic guidance to <b>start</b> a resume review — not a hiring decision or a guarantee of passing any specific ATS. Pasted text loses layout, so file/format and visual standards are marked <span class="pill review" style="font-size:.6rem">Confirm</span> for you to check by eye. Your resume and the job description stay in this browser; nothing is uploaded.
+  </footer>
+</div>
+
+<script>
+/* ---------- theme ---------- */
+const themeBtn=document.getElementById('themeBtn');
+(function(){try{const t=localStorage.getItem('cvr-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+themeBtn.addEventListener('click',()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  const next=dark?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('cvr-theme',next);}catch(e){}
+});
+
+/* ---------- sample ---------- */
+const SAMPLE=`Oluwatosin Aina
+Toronto, ON  |  tosin.aina@email.com  |  (416) 555-0199  |  linkedin.com/in/example
+
+SUMMARY
+Senior GRC analyst with 8+ years securing financial services. CISSP, CRISC, CISA. Builds AI governance and risk programs aligned to ISO and NIST.
+
+EXPERIENCE
+Business Unit Security Officer — Manulife, Toronto  |  Jan 2021 – Present
+- Led risk assessments across 12 business units, reducing open findings by 40%.
+- Responsible for coordinating ISO 27001 surveillance audits each year.
+- Built an AI governance program aligned to NIST AI RMF and ISO 42001, cutting review time from 24h to 2h.
+
+GRC Analyst — Acme Bank, Toronto  |  2018 – 2021
+- Managed third-party risk reviews for 200+ vendors.
+- Hard-working team player who thinks outside the box to deliver results.
+
+EDUCATION
+B.Sc. Computer Science — University of Lagos, 2014
+
+SKILLS
+Risk management, ISO 27001, NIST CSF, third-party risk, SIEM, Python, GRC tooling`;
+
+const R=document.getElementById('resume'), J=document.getElementById('jd');
+R.value=SAMPLE;
+
+/* ---------- helpers ---------- */
+const STOP=new Set("the a an and or of to in for with on at by from as is are be this that your you our we their it will has have across each per plus etc using use able role team work experience skills ability years year strong excellent good knowledge including into than then them they who which what when where able looking ideal candidate must should would could also within across over under more most other".split(/\s+/));
+const ACTION=new Set("led built managed drove delivered reduced increased improved launched created designed implemented developed automated streamlined negotiated owned established architected migrated coordinated directed spearheaded cut grew scaled resolved audited assessed mitigated secured deployed shipped mentored analyzed optimized standardized consolidated championed".split(/\s+/));
+const WEAK=[/responsible for/i,/duties included/i,/worked on/i,/helped (to )?with/i,/assisted with/i,/tasked with/i,/in charge of/i];
+const CLICHE=["team player","hard working","hard-working","detail-oriented","detail oriented","results-driven","results driven","go-getter","think outside the box","thinks outside the box","synergy","self-starter","self starter","proven track record","go above and beyond","fast-paced","dynamic professional","best of breed","value add","wear many hats","hit the ground running"];
+const ACR=["CISSP","CRISC","CISA","CISM","CCSP","CEH","OSCP","PMP","GRC","SIEM","DLP","IAM","SOC","RMF","DPIA","FRIA"];
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function bulletsOf(text){
+  return text.split(/\n/).map(l=>l.trim()).filter(l=>/^[-•*▪◦‣·]/.test(l)).map(l=>l.replace(/^[-•*▪◦‣·]+\s*/,''));
+}
+function sentencesStart(b){return b.split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g,'')||'';}
+
+/* ---------- standards ---------- */
+const STANDARDS=[
+ {id:1,g:'ats',w:3,t:'Contact Essentials',what:'Name, professional email, phone and a LinkedIn/portfolio are present and parseable.',
+  crit:['Professional email','Phone number','LinkedIn or portfolio URL'],
+  fn:(t,low)=>{const email=/[\w.+-]+@[\w-]+\.[\w.-]+/.test(t);const phone=/(\+?\d[\d\s().\-]{7,}\d)/.test(t);const li=/linkedin\.com\/in\//i.test(t)||/github\.com\//i.test(t)||/https?:\/\//i.test(t);
+    const have=[email&&'email',phone&&'phone',li&&'a link'].filter(Boolean);const miss=['email','phone','a link'].filter(x=>!have.includes(x));
+    if(email&&phone&&li)return['pass','All core contact details found ('+have.join(', ')+').'];
+    if(have.length>=1)return['partial','Found '+have.join(', ')+'. Missing: '+miss.join(', ')+'.'];
+    return['fail','No email, phone or link detected in the top of the resume.'];}},
+
+ {id:2,g:'ats',w:3,t:'Standard Section Headings',what:'Uses the plain headings ATS parsers expect, not creative labels.',
+  crit:['Experience','Education','Skills','Summary/Profile'],
+  fn:(t,low)=>{const map={Experience:/\bexperience|employment|work history\b/,Education:/\beducation\b/,Skills:/\bskills|competencies|technical\b/,Summary:/\bsummary|profile|objective\b/};
+    const found=Object.keys(map).filter(k=>map[k].test(low));const miss=Object.keys(map).filter(k=>!found.includes(k));
+    if(found.length>=3&&found.includes('Experience'))return['pass','Standard headings present: '+found.join(', ')+'.'];
+    if(found.length>=2)return['partial','Found '+found.join(', ')+'. Consider adding: '+miss.join(', ')+'.'];
+    return['fail','Standard section headings not detected — parsers may not segment the resume.'];}},
+
+ {id:3,g:'ats',w:1,t:'Consistent, Recent Dates',what:'Employment dates are present, consistent in format, and show current role.',
+  crit:['Month + year where relevant','Consistent format','“Present” on current role'],
+  fn:(t,low)=>{const years=(t.match(/\b(19|20)\d{2}\b/g)||[]);const months=/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(t);const present=/present|current/i.test(low);
+    if(years.length>=2&&months&&present)return['pass','Dates with months found, including a current role.'];
+    if(years.length>=2)return['partial','Years found'+(present?'':', but no “Present”')+(months?'':'; consider adding months (MMM YYYY).')];
+    return['fail','Few or no employment dates detected.'];}},
+
+ {id:4,g:'ats',w:1,t:'Acronyms Spelled Out',what:'Key certifications/terms appear in full at least once so both forms match searches.',
+  crit:['Full term on first use','Acronym in brackets','Covers certs & tools'],
+  fn:(t,low)=>{const present=ACR.filter(a=>new RegExp('\\b'+a+'\\b').test(t));const expanded=present.filter(a=>new RegExp('\\('+a+'\\)|'+a+'\\s*\\(').test(t)||new RegExp('\\)\\s*'+a).test(t));
+    if(!present.length)return['partial','No common acronyms detected to check.'];
+    if(expanded.length>=1)return['partial','Found '+present.length+' acronym(s); spell out each on first use, e.g. “Certified Information Systems Security Professional (CISSP)”.'];
+    return['partial','Acronyms present ('+present.slice(0,4).join(', ')+') without a spelled-out form — add the full term once.'];}},
+
+ {id:5,g:'ats',w:3,t:'ATS-Safe Layout',what:'Single column, no text boxes, tables or graphics, nothing vital in headers/footers.',
+  crit:['One column','No tables/text boxes','Contact in the body, not a header'],
+  fn:()=>['review','Can’t be read from pasted text — confirm your file is single-column with no tables, images or header/footer text.']},
+
+ {id:6,g:'ats',w:2,t:'Clean File & Format',what:'A text-based .docx or PDF (not a scan/image) with a sensible filename.',
+  crit:['.docx or text PDF','Selectable text, no scan','First_Last_Resume.pdf'],
+  fn:()=>['review','Confirm manually: save as .docx or a text-based PDF and name it like First_Last_Resume.pdf.']},
+
+ {id:7,g:'ats',w:3,t:'Keyword Match to Job',what:'The resume reflects the hard skills, tools and titles from the target posting.',
+  crit:['Covers key JD terms','Mirrors the job title','No keyword stuffing'],
+  fn:(t,low,jd)=>{if(!jd||jd.trim().length<40)return['review','Paste a job description above to score keyword alignment and see what’s missing.'];
+    const jl=jd.toLowerCase();const freq={};(jl.match(/[a-z][a-z0-9+.#-]{3,}/g)||[]).forEach(w=>{if(!STOP.has(w))freq[w]=(freq[w]||0)+1;});
+    const terms=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,22);
+    const hit=terms.filter(k=>low.includes(k));const miss=terms.filter(k=>!low.includes(k));
+    const pct=terms.length?Math.round(hit.length/terms.length*100):0;
+    const m=miss.length?' Missing: '+miss.slice(0,8).join(', ')+'.':'';
+    if(pct>=65)return['pass','Strong alignment — '+pct+'% of key job terms appear.'+m];
+    if(pct>=40)return['partial','Partial alignment — '+pct+'% of key job terms appear.'+m];
+    return['fail','Low alignment — only '+pct+'% of key job terms appear.'+m];}},
+
+ {id:8,g:'content',w:2,t:'Professional Summary',what:'A short, targeted 2–3 line summary — not a generic objective.',
+  crit:['Present near the top','≈2–3 lines','Role-specific, no clichés'],
+  fn:(t,low)=>{const m=low.match(/\n\s*(summary|profile|objective)\b/);if(!m)return['fail','No summary/profile section detected — add a 2–3 line targeted summary.'];
+    const after=t.slice(m.index).split(/\n\s*[A-Z][A-Z \/&]{3,}\n/)[0]||'';const wc=after.split(/\s+/).length;
+    if(wc>8&&wc<=60)return['pass','Concise summary present ('+wc+' words).'];
+    if(wc>60)return['partial','Summary is long ('+wc+' words) — tighten to 2–3 lines.'];
+    return['partial','Summary section is very short — expand to a targeted 2–3 lines.'];}},
+
+ {id:9,g:'content',w:2,t:'Skills Section',what:'A relevant, grouped skills list that mirrors the experience bullets.',
+  crit:['Dedicated skills section','Relevant & current','Reflected in experience'],
+  fn:(t,low)=>{const m=low.match(/\n\s*(skills|technical skills|competencies)\b/);if(!m)return['fail','No skills section detected.'];
+    const after=t.slice(m.index).replace(/^.*\n/,'');const items=(after.split(/\n\n/)[0]||'').split(/[,•|\n]/).map(s=>s.trim()).filter(s=>s.length>1);
+    if(items.length>=6)return['pass',items.length+' skills listed.'];
+    if(items.length>=3)return['partial','Only '+items.length+' skills listed — add the key tools for your target roles.'];
+    return['partial','Skills section looks thin — group by category and list your core tools.'];}},
+
+ {id:10,g:'content',w:3,t:'Outcome-Based Bullets',what:'Bullets lead with an action verb and show what changed, not just duties.',
+  crit:['Starts with a verb','States the action','Shows the result'],
+  fn:(t)=>{const b=bulletsOf(t);if(!b.length)return['fail','No bullet points detected — convert experience into achievement bullets.'];
+    const strong=b.filter(x=>ACTION.has(sentencesStart(x))).length;const frac=strong/b.length;
+    if(frac>=0.6)return['pass',strong+' of '+b.length+' bullets start with a strong action verb.'];
+    if(frac>=0.3)return['partial',strong+' of '+b.length+' bullets lead with an action verb — rewrite the rest to lead with impact.'];
+    return['fail','Most bullets don’t lead with an action verb — start each with a strong verb.'];}},
+
+ {id:11,g:'content',w:3,t:'Quantified Metrics',what:'Results use real numbers, %, $, volumes or scale.',
+  crit:['Numbers or %','$ or volumes','Credible, not inflated'],
+  fn:(t)=>{const b=bulletsOf(t);if(!b.length)return['fail','No bullets to measure.'];
+    const withNum=b.filter(x=>/\d+%|\$\s?\d|\b\d{2,}\b|\b\d+\+|\bby \d/.test(x)).length;const frac=withNum/b.length;
+    if(frac>=0.5)return['pass',withNum+' of '+b.length+' bullets include a number or metric.'];
+    if(frac>=0.25)return['partial','Only '+withNum+' of '+b.length+' bullets are quantified — add scale, %, $ or volumes.'];
+    return['fail','Few quantified results — add numbers (%, $, counts, time saved) to your bullets.'];}},
+
+ {id:12,g:'content',w:2,t:'Strong Action Verbs',what:'Avoids passive, duty-style phrasing like “responsible for”.',
+  crit:['No “responsible for”','No “worked on/helped with”','Active voice'],
+  fn:(t)=>{const hits=[];WEAK.forEach(re=>{const m=t.match(new RegExp(re.source,'gi'));if(m)hits.push(...m);});
+    if(!hits.length)return['pass','No weak duty phrases detected.'];
+    if(hits.length<=2)return['partial',hits.length+' weak phrase(s) found ('+hits.slice(0,2).join(', ')+') — replace with action verbs.'];
+    return['fail',hits.length+' duty-style phrases — rewrite with strong verbs and outcomes.'];}},
+
+ {id:13,g:'content',w:1,t:'Third-Person Voice',what:'No first-person pronouns (I, my, me).',
+  crit:['No “I / my / me”','Implied subject','Consistent voice'],
+  fn:(t,low)=>{const m=(low.match(/\b(i|my|me|myself)\b/g)||[]);
+    if(!m.length)return['pass','No first-person pronouns found.'];
+    if(m.length<=2)return['partial',m.length+' first-person pronoun(s) — resumes omit “I/my”.'];
+    return['fail',m.length+' first-person pronouns — remove “I/my/me”.'];}},
+
+ {id:14,g:'content',w:1,t:'No Clichés / Buzzwords',what:'Avoids empty filler that adds no signal.',
+  crit:['No “team player”','No “results-driven”','Specifics over buzzwords'],
+  fn:(t,low)=>{const hits=CLICHE.filter(c=>low.includes(c));
+    if(!hits.length)return['pass','No common clichés detected.'];
+    if(hits.length<=1)return['partial','Cliché found: “'+hits[0]+'” — replace with a concrete example.'];
+    return['fail',hits.length+' clichés ('+hits.slice(0,3).join(', ')+') — cut or replace with evidence.'];}},
+
+ {id:15,g:'content',w:2,t:'Appropriate Length',what:'Roughly 1–2 pages of content for the experience level.',
+  crit:['≈400–850 words typical','Not a wall of text','No one-liner'],
+  fn:(t)=>{const w=t.trim().split(/\s+/).length;
+    if(w>=350&&w<=850)return['pass','~'+w+' words — a healthy 1–2 page length.'];
+    if(w<350)return['partial','Only ~'+w+' words — likely too sparse; add achievements.'];
+    if(w<=1200)return['partial','~'+w+' words — trending long; tighten toward 2 pages.'];
+    return['fail','~'+w+' words — too long; cut to 1–2 pages of the strongest material.'];}},
+
+ {id:16,g:'content',w:1,t:'Readability & Consistency',what:'Consistent bullets and clean, scannable structure.',
+  crit:['Consistent bullet style','Parallel phrasing','No giant paragraphs'],
+  fn:(t)=>{const b=bulletsOf(t);const longPara=t.split(/\n/).some(l=>l.trim().split(/\s+/).length>45);
+    if(b.length>=4&&!longPara)return['review','Bullets look consistent — confirm spacing, alignment and font by eye.'];
+    if(longPara)return['partial','A long paragraph detected — break dense text into bullets.'];
+    return['review','Add a few achievement bullets, then confirm visual consistency by eye.'];}},
+];
+
+/* ---------- fix recommendations ---------- */
+const FIXES={
+ 1:()=>'Put one clean contact line under your name, in the body text (not a header): <span class="eg">City, Province · you@email.com · (000) 000-0000 · linkedin.com/in/you</span>',
+ 2:(t,low)=>{const map={Experience:/experience|employment|work history/,Education:/education/,Skills:/skills|competencies|technical/,Summary:/summary|profile|objective/};const miss=Object.keys(map).filter(k=>!map[k].test(low));if(!miss.length)return'Headings look standard — keep them as plain words so parsers can segment the resume.';return 'Add or rename to these exact headings: <b>'+esc(miss.join(', '))+'</b>. Avoid creative labels like “My Journey”.';},
+ 3:()=>'Use a consistent <b>MMM YYYY – MMM YYYY</b> format on every role, and “Present” on your current one.<span class="eg">Jan 2021 – Present · Mar 2018 – Dec 2020</span>',
+ 4:(t)=>{const present=ACR.filter(a=>new RegExp('\\b'+a+'\\b').test(t));if(!present.length)return'Spell out any certification or technical acronym the first time it appears.';return 'Spell each acronym out once on first use: <b>'+esc(present.slice(0,5).join(', '))+'</b>.<span class="eg"><b>e.g.</b> Certified Information Systems Security Professional (CISSP)</span>';},
+ 5:()=>'Rebuild in a single-column template: no tables, text boxes, columns, icons or logos, and keep contact details in the body.<span class="eg">Word: Layout → Columns → One. Move any header/footer text into the page body.</span>',
+ 6:()=>'Save as <b>.docx</b> or a text-based PDF (not a scan or image) and name it sensibly.<span class="eg">First_Last_Resume.pdf — not resume_final_v3.pdf</span>',
+ 7:(t,low,jd)=>{if(!jd||jd.trim().length<40)return'Paste the target job posting above, then weave its exact skills, tools and job title into your summary, skills and bullets — only ones you genuinely have.';const jl=jd.toLowerCase();const freq={};(jl.match(/[a-z][a-z0-9+.#-]{3,}/g)||[]).forEach(w=>{if(!STOP.has(w))freq[w]=(freq[w]||0)+1;});const terms=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,22);const miss=terms.filter(k=>!low.includes(k));if(!miss.length)return'Good coverage. Mirror the exact job title in your summary and keep the strongest JD terms near the top.';return 'Work these missing terms from the posting into your resume where true: <b>'+esc(miss.slice(0,10).join(', '))+'</b>. Put the most important in your summary and skills. Don’t stuff — only add skills you have.';},
+ 8:(t,low)=>{const has=/\n\s*(summary|profile|objective)\b/.test(low);return (has?'Tighten your summary to 2–3 targeted lines.':'Add a 2–3 line summary at the very top.')+'<span class="eg"><b>Pattern:</b> [Title] with [X yrs] in [domain]. [Signature win + number]. Targeting [role].<br>“Senior GRC analyst with 8+ yrs in financial services. Built AI governance aligned to NIST AI RMF &amp; ISO 42001, cutting review time 90%. Targeting AI risk leadership.”</span>';},
+ 9:()=>'Group skills under 2–4 labels and include the core tools for your target roles.<span class="eg"><b>Risk &amp; Compliance:</b> ISO 27001, NIST CSF, SOC 2 · <b>Security:</b> SIEM, DLP, IAM · <b>Technical:</b> Python, SQL</span>',
+ 10:()=>'Start every bullet with a strong verb and show the result.<span class="eg"><b>Formula:</b> [Action verb] + [what you did] + [measurable result]<br>“Led risk assessments across 12 units, cutting open findings 40%.”</span>',
+ 11:()=>'Quantify at least half your bullets — add %, $, counts, volumes or time saved. If you lack exact figures, estimate ranges.<span class="eg">“Managed vendor reviews” → “Managed risk reviews for ~200 vendors, clearing the backlog in 3 months.”</span>',
+ 12:(t)=>{const hits=[];WEAK.forEach(re=>{const m=t.match(new RegExp(re.source,'gi'));if(m)hits.push(...m);});const found=[...new Set(hits.map(h=>h.toLowerCase()))].slice(0,3);return 'Replace weak, duty-style phrasing'+(found.length?' ('+esc(found.join(', '))+')':'')+' with action verbs.<span class="eg"><b>Responsible for</b> X → <b>Led / Owned / Ran</b> X · <b>Worked on</b> → <b>Built / Delivered</b></span>';},
+ 13:()=>'Remove first-person pronouns.<span class="eg"><b>I led</b> the team → <b>Led</b> the team</span>',
+ 14:(t,low)=>{const hits=CLICHE.filter(c=>low.includes(c));if(!hits.length)return'Keep proving claims with evidence rather than buzzwords.';return 'Cut: <b>'+esc(hits.slice(0,3).join(', '))+'</b>. Replace each with a bullet that proves it.<span class="eg"><b>Hard-working team player</b> → “Coordinated 5 teams to deliver the audit two weeks early.”</span>';},
+ 15:(t)=>{const w=t.trim().split(/\s+/).length;if(w<350)return'Too sparse — add 2–4 quantified achievement bullets to each recent role.';if(w>1200)return'Too long — cut to 1–2 pages: drop roles older than ~10–15 years, merge weak bullets, keep your strongest quantified wins.';if(w>850)return'Trending long — tighten toward two pages by cutting the weakest bullets.';return'Length is healthy; keep it to 1–2 pages as you add roles.';},
+ 16:()=>'Use one consistent bullet character and parallel phrasing (all past-tense verbs), keep bullets to 1–2 lines, and break any long paragraph into bullets.',
+};
+function fixHTML(s,t,low,jd){try{return FIXES[s.id]?FIXES[s.id](t,low,jd):esc(auto[s.id].r);}catch(e){return esc(auto[s.id].r);}}
+
+const GROUPS=[{k:'ats',name:'ATS &amp; parseability',note:'does the machine read it'},{k:'content',name:'Content, impact &amp; targeting',note:'does the human rate it'}];
+const GRADE=p=>p>=85?'Excellent':p>=70?'Strong':p>=55?'Fair':p>=35?'Needs work':'Weak';
+const LETTER=p=>p>=85?'A':p>=70?'B':p>=55?'C':p>=35?'D':'F';
+const VAL={pass:1,partial:.5,fail:0,review:.5};
+const overrides={};
+let auto={};
+
+function analyze(){
+  const t=R.value, low=t.toLowerCase(), jd=J.value;
+  auto={};
+  STANDARDS.forEach(s=>{const[v,r]=s.fn(t,low,jd);auto[s.id]={v,r};});
+  for(const k in overrides)delete overrides[k];
+  render();
+  try{localStorage.setItem('cvr-data',JSON.stringify({resume:R.value,jd:J.value,ts:Date.now()}));}catch(e){}
+  document.getElementById('hint').textContent='Analyzed '+t.trim().split(/\s+/).length+' words'+(jd.trim().length>40?' against the job description.':'. Add a job description for keyword scoring.')+' · Saved to this browser.';
+}
+function stateOf(s){return overrides[s.id]||auto[s.id].v;}
+
+function render(){
+  const t=R.value, low=t.toLowerCase(), jd=J.value;
+  // scores
+  const by=g=>STANDARDS.filter(s=>s.g===g);
+  const sc=list=>{let w=0,v=0;list.forEach(s=>{w+=s.w;v+=s.w*VAL[stateOf(s)];});return w?Math.round(v/w*100):0;};
+  let cS=sc(by('content')), aS=sc(by('ats'));
+  // critical cap
+  const crit=[1,2,5];const capped=crit.some(id=>stateOf(STANDARDS.find(s=>s.id===id))==='fail');
+  let oS=Math.round(cS*0.5+aS*0.5);if(capped)oS=Math.min(oS,54);
+  setDial('O',oS);setDial('C',cS);setDial('A',aS);
+  const gr=(id,p)=>document.getElementById('grade'+id).innerHTML='<span class="letter">'+LETTER(p)+'</span> · '+GRADE(p);
+  gr('O',oS);gr('C',cS);gr('A',aS);
+  document.getElementById('subO').textContent=capped?'Capped: a critical ATS item is failing':(oS>=70?'Interview-ready with minor polish':'Fixable — follow the plan below');
+
+  // recommended fixes (action plan)
+  const order={fail:0,review:1,partial:2,pass:3};
+  const probs=STANDARDS.map(s=>({s,v:stateOf(s)})).filter(x=>x.v!=='pass')
+    .sort((a,b)=>(order[a.v]-order[b.v])|| (b.s.w-a.s.w));
+  const fx=document.getElementById('fixes');fx.innerHTML='';
+  probs.slice(0,8).forEach(({s,v})=>{
+    const li=document.createElement('li');
+    li.innerHTML='<span class="tagv pill '+v+'">'+(v==='review'?'confirm':v)+'</span><b>'+s.t+'.</b> '+fixHTML(s,t,low,jd);
+    fx.appendChild(li);
+  });
+  document.getElementById('fixesBox').hidden=false;
+  if(!probs.length){fx.innerHTML='<li>No issues flagged — strong resume. Still confirm the layout and file items by eye.</li>';}
+
+  // groups
+  const host=document.getElementById('groups');host.innerHTML='';
+  GROUPS.forEach(G=>{
+    const sec=document.createElement('section');sec.className='group';
+    sec.innerHTML='<h2>'+G.name+' <em>'+G.note+'</em></h2>';
+    const grid=document.createElement('div');grid.className='grid';
+    by(G.k).forEach(s=>grid.appendChild(cardEl(s)));
+    sec.appendChild(grid);host.appendChild(sec);
+  });
+}
+function setDial(id,p){const d=document.getElementById('dial'+id);const c=p>=70?'var(--pass)':p>=45?'var(--partial)':'var(--fail)';
+  d.style.setProperty('--v',p);d.style.setProperty('--c',c);document.getElementById('score'+id).textContent=p;}
+
+function cardEl(s){
+  const v=stateOf(s);const c=document.createElement('article');c.className='card';c.dataset.state=v;
+  c.innerHTML=
+    '<div class="no">Standard '+String(s.id).padStart(2,'0')+'</div>'+
+    '<h3>'+s.t+'</h3>'+
+    '<span class="pill '+v+'">'+(v==='review'?'Confirm':v)+'</span>'+
+    '<p class="what">'+s.what+'</p>'+
+    '<ul class="crit">'+s.crit.map(x=>'<li>'+x+'</li>').join('')+'</ul>'+
+    '<div class="reason"><b>Finding:</b> '+esc(auto[s.id].r)+'</div>'+
+    (v!=='pass'?'<div class="howfix"><b>Fix:</b> '+fixHTML(s,R.value,R.value.toLowerCase(),J.value)+'</div>':'')+
+    '<div class="verdict">'+['pass','partial','fail'].map(x=>
+      '<button class="vb '+(v===x?'on':'')+'" data-v="'+x+'" data-id="'+s.id+'" type="button">'+x[0].toUpperCase()+x.slice(1)+'</button>').join('')+'</div>';
+  c.querySelectorAll('.vb').forEach(b=>b.addEventListener('click',()=>{overrides[s.id]=b.dataset.v;render();}));
+  return c;
+}
+
+/* ---------- report copy ---------- */
+function report(){
+  const by=g=>STANDARDS.filter(s=>s.g===g);
+  let out='CV REVIEW REPORT\n================\n';
+  ['O','C','A'].forEach((k,i)=>{});
+  out+='Overall: '+document.getElementById('scoreO').textContent+' ('+document.getElementById('gradeO').textContent+')\n';
+  out+='Content & impact: '+document.getElementById('scoreC').textContent+'\nATS readiness: '+document.getElementById('scoreA').textContent+'\n\n';
+  STANDARDS.forEach(s=>{out+='['+stateOf(s).toUpperCase()+'] '+String(s.id).padStart(2,'0')+' '+s.t+'\n   '+auto[s.id].r+'\n';});
+  return out;
+}
+document.getElementById('copyBtn').addEventListener('click',async()=>{
+  const txt=report();const h=document.getElementById('hint');
+  try{await navigator.clipboard.writeText(txt);h.textContent='Report copied to clipboard.';}
+  catch(e){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');h.textContent='Report copied.';}catch(_){h.textContent='Copy failed — select the resume box manually.';}ta.remove();}
+});
+
+document.getElementById('analyze').addEventListener('click',analyze);
+document.getElementById('sampleBtn').addEventListener('click',()=>{R.value=SAMPLE;document.getElementById('exLbl').style.display='';analyze();});
+document.getElementById('clearBtn').addEventListener('click',()=>{R.value='';J.value='';document.getElementById('exLbl').style.display='none';analyze();});
+R.addEventListener('input',()=>{document.getElementById('exLbl').style.display='none';});
+
+(function init(){
+  try{const saved=JSON.parse(localStorage.getItem('cvr-data')||'null');
+    if(saved&&saved.resume&&saved.resume.trim()){R.value=saved.resume;J.value=saved.jd||'';document.getElementById('exLbl').style.display='none';}
+  }catch(e){}
+  analyze();
+})();
+</script>
